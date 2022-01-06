@@ -1,0 +1,630 @@
+#include <stdio.h>
+#include <memory.h>
+#include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <windows.h>
+#include <malloc.h>
+#define MAXROUNDS			24
+unsigned char SBOX[256] = {
+	0x77, 0x74, 0x79, 0x7c, 0x7b, 0x7a, 0x7d, 0x78, 0x7f, 0x7e, 0x71, 0x76, 0x70, 0x73, 0x72, 0x75,
+	0x47, 0x44, 0x49, 0x4c, 0x4b, 0x4a, 0x4d, 0x48, 0x4f, 0x4e, 0x41, 0x46, 0x40, 0x43, 0x42, 0x45,
+	0x97, 0x94, 0x99, 0x9c, 0x9b, 0x9a, 0x9d, 0x98, 0x9f, 0x9e, 0x91, 0x96, 0x90, 0x93, 0x92, 0x95,
+	0xc7, 0xc4, 0xc9, 0xcc, 0xcb, 0xca, 0xcd, 0xc8, 0xcf, 0xce, 0xc1, 0xc6, 0xc0, 0xc3, 0xc2, 0xc5,
+	0xb7, 0xb4, 0xb9, 0xbc, 0xbb, 0xba, 0xbd, 0xb8, 0xbf, 0xbe, 0xb1, 0xb6, 0xb0, 0xb3, 0xb2, 0xb5,
+	0xa7, 0xa4, 0xa9, 0xac, 0xab, 0xaa, 0xad, 0xa8, 0xaf, 0xae, 0xa1, 0xa6, 0xa0, 0xa3, 0xa2, 0xa5,
+	0xd7, 0xd4, 0xd9, 0xdc, 0xdb, 0xda, 0xdd, 0xd8, 0xdf, 0xde, 0xd1, 0xd6, 0xd0, 0xd3, 0xd2, 0xd5,
+	0x87, 0x84, 0x89, 0x8c, 0x8b, 0x8a, 0x8d, 0x88, 0x8f, 0x8e, 0x81, 0x86, 0x80, 0x83, 0x82, 0x85,
+	0xf7, 0xf4, 0xf9, 0xfc, 0xfb, 0xfa, 0xfd, 0xf8, 0xff, 0xfe, 0xf1, 0xf6, 0xf0, 0xf3, 0xf2, 0xf5,
+	0xe7, 0xe4, 0xe9, 0xec, 0xeb, 0xea, 0xed, 0xe8, 0xef, 0xee, 0xe1, 0xe6, 0xe0, 0xe3, 0xe2, 0xe5,
+	0x17, 0x14, 0x19, 0x1c, 0x1b, 0x1a, 0x1d, 0x18, 0x1f, 0x1e, 0x11, 0x16, 0x10, 0x13, 0x12, 0x15,
+	0x67, 0x64, 0x69, 0x6c, 0x6b, 0x6a, 0x6d, 0x68, 0x6f, 0x6e, 0x61, 0x66, 0x60, 0x63, 0x62, 0x65,
+	0x07, 0x04, 0x09, 0x0c, 0x0b, 0x0a, 0x0d, 0x08, 0x0f, 0x0e, 0x01, 0x06, 0x00, 0x03, 0x02, 0x05,
+	0x37, 0x34, 0x39, 0x3c, 0x3b, 0x3a, 0x3d, 0x38, 0x3f, 0x3e, 0x31, 0x36, 0x30, 0x33, 0x32, 0x35,
+	0x27, 0x24, 0x29, 0x2c, 0x2b, 0x2a, 0x2d, 0x28, 0x2f, 0x2e, 0x21, 0x26, 0x20, 0x23, 0x22, 0x25,
+	0x57, 0x54, 0x59, 0x5c, 0x5b, 0x5a, 0x5d, 0x58, 0x5f, 0x5e, 0x51, 0x56, 0x50, 0x53, 0x52, 0x55 };
+
+unsigned char invSBOX[256] = {
+	0xcc,0xca,0xce,0xcd,0xc1,0xcf,0xcb,0xc0,0xc7,0xc2,0xc5,0xc4,0xc3,0xc6,0xc9,0xc8,
+	0xac,0xaa,0xae,0xad,0xa1,0xaf,0xab,0xa0,0xa7,0xa2,0xa5,0xa4,0xa3,0xa6,0xa9,0xa8,
+	0xec,0xea,0xee,0xed,0xe1,0xef,0xeb,0xe0,0xe7,0xe2,0xe5,0xe4,0xe3,0xe6,0xe9,0xe8,
+	0xdc,0xda,0xde,0xdd,0xd1,0xdf,0xdb,0xd0,0xd7,0xd2,0xd5,0xd4,0xd3,0xd6,0xd9,0xd8,
+	0x1c,0x1a,0x1e,0x1d,0x11,0x1f,0x1b,0x10,0x17,0x12,0x15,0x14,0x13,0x16,0x19,0x18,
+	0xfc,0xfa,0xfe,0xfd,0xf1,0xff,0xfb,0xf0,0xf7,0xf2,0xf5,0xf4,0xf3,0xf6,0xf9,0xf8,
+	0xbc,0xba,0xbe,0xbd,0xb1,0xbf,0xbb,0xb0,0xb7,0xb2,0xb5,0xb4,0xb3,0xb6,0xb9,0xb8,
+	0x0c,0x0a,0x0e,0x0d,0x01,0x0f,0x0b,0x00,0x07,0x02,0x05,0x04,0x03,0x06,0x09,0x08,
+	0x7c,0x7a,0x7e,0x7d,0x71,0x7f,0x7b,0x70,0x77,0x72,0x75,0x74,0x73,0x76,0x79,0x78,
+	0x2c,0x2a,0x2e,0x2d,0x21,0x2f,0x2b,0x20,0x27,0x22,0x25,0x24,0x23,0x26,0x29,0x28,
+	0x5c,0x5a,0x5e,0x5d,0x51,0x5f,0x5b,0x50,0x57,0x52,0x55,0x54,0x53,0x56,0x59,0x58,
+	0x4c,0x4a,0x4e,0x4d,0x41,0x4f,0x4b,0x40,0x47,0x42,0x45,0x44,0x43,0x46,0x49,0x48,
+	0x3c,0x3a,0x3e,0x3d,0x31,0x3f,0x3b,0x30,0x37,0x32,0x35,0x34,0x33,0x36,0x39,0x38,
+	0x6c,0x6a,0x6e,0x6d,0x61,0x6f,0x6b,0x60,0x67,0x62,0x65,0x64,0x63,0x66,0x69,0x68,
+	0x9c,0x9a,0x9e,0x9d,0x91,0x9f,0x9b,0x90,0x97,0x92,0x95,0x94,0x93,0x96,0x99,0x98,
+	0x8c,0x8a,0x8e,0x8d,0x81,0x8f,0x8b,0x80,0x87,0x82,0x85,0x84,0x83,0x86,0x89,0x88 };
+typedef unsigned char		word8;	//一个字节8bit
+typedef unsigned short		word4;	//两个字节16bit
+typedef unsigned long		word32; //四个字节32bit
+
+word32 RK[1000000][8];
+
+
+unsigned char T1[8] = { 0,2,4,6,1,3,5,7 };
+unsigned char T2[8] = { 0,4,1,5,2,6,3,7 };
+unsigned char S[16] = { 0x7,0x4,0x9,0xc,0xb,0xa,0xd,0x8,0xf,0xe,0x1,0x6,0x0,0x3,0x2,0x5 };
+//word8 PL256[16] = { 2,7,8,13,3,6,9,12,1,4,15,10,14,11,5,0 };
+//word8 PL256[4][4] = { {2,7,8,13 }, {3, 6, 9, 12}, {1, 4, 15, 10}, {14, 11, 5, 0} };
+//short int invPl256[16] = { 15,8,0,4,9,14,5,1,2,6,11,13,7,3,12,10 };
+//short int PR256[16] = { 6,11,1,12,9,4,2,15,7,0,13,10,14,3,8,5 };
+//word8 PR256[4][4] = { {6,11,1,12 }, {9, 4, 2, 15}, {7, 0, 13, 10}, {14, 3, 8, 5} };
+//short int invPR256[16] = { 9,2,6,13,5,15,0,8,14,4,11,1,3,10,12,7 };
+unsigned char PLR256[32] = { 2,7,8,13,3,6,9,12,1,4,15,10,14,11,5,0,22,27,17,28,25,20,18,31,23,16,29,26,30,19,24,21 };
+unsigned char invPLR256[32] = { 15,8,0,4,9,14,5,1,2,6,11,13,7,3,12,10 ,25,18,22,29,21,31,16,24,30,20,27,17,19,26,28,23 };
+unsigned RC[24] = {
+	0x988cc9dd,0xf0e4a1b5,0x21357064,0x8397d2c6,0xc7d39682,0x4f5b1e0a,0x5e4a0f1b,0x7c682d39,0x392d687c,0xb3a7e2f6,0xa7b3f6e2,0x8e9adfcb,
+	0xdcc88d99,0x786c293d,0x30246175,0xa1b5f0e4,0x8296d3c7,0xc5d19480,0x4a5e1b0f,0x55410410,0x6b7f3a2e,0x17034652,0xeffbbeaa,0x1f0b4e5a };
+short int PK3[32] = { 10,5,15,0,2,7,8,13,1,14,4,12,9,11,3,6,24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23 };
+
+
+unsigned GFmulti2(unsigned k)
+{
+	if (k > 7)
+	{
+		return (((k << 1) - 16) ^ (0x3));
+	}
+	else
+	{
+		return (k << 1);
+	}
+	return 0;
+
+}
+unsigned S32(unsigned k)
+{
+	unsigned temp = k;
+	unsigned char* t;
+	t = &temp;
+	*t = SBOX[*t];
+	*(t + 1) = SBOX[*(t + 1)];
+	*(t + 2) = SBOX[*(t + 2)];
+	*(t + 3) = SBOX[*(t + 3)];
+
+	return temp;
+}
+unsigned invS32(unsigned k)
+{
+	unsigned temp = k;
+	unsigned char* t;
+	t = &temp;
+	*t = invSBOX[*t];
+	*(t + 1) = invSBOX[*(t + 1)];
+	*(t + 2) = invSBOX[*(t + 2)];
+	*(t + 3) = invSBOX[*(t + 3)];
+
+	return temp;
+}
+unsigned T128(unsigned k)
+{
+	unsigned t;
+	t = (GFmulti2(k >> 28) << 28) + (GFmulti2(k << 4 >> 28) << 24) + (GFmulti2(k << 8 >> 28) << 20)
+		+ (GFmulti2(k << 12 >> 28) << 16) + (GFmulti2(k << 16 >> 28) << 12) + (GFmulti2(k << 20 >> 28) << 8)
+		+ (GFmulti2(k << 24 >> 28) << 4) + (GFmulti2(k << 28 >> 28));
+	return t;
+}
+void AddRoundKey(word32 a[8], word32 RK[8]) {
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		a[i] ^= RK[i];
+	}
+}
+void SB(word32 a[8]) {
+	int i;
+	word32 tmp[8];
+	for (i = 0; i < 8; i++) {
+		tmp[i] = S32(a[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		a[i] = tmp[i];
+	}
+}
+void invSB(word32 a[8]) {
+	int i;
+	word32 tmp[8];
+	for (i = 0; i < 8; i++) {
+		tmp[i] = invS32(a[i]);
+	}
+	for (i = 0; i < 8; i++) {
+		a[i] = tmp[i];
+	}
+}
+void T11(word32 a[8]) {
+	int i;
+	word32 tmp[8];
+	for (i = 0; i < 8; i++) {
+		tmp[0] = a[0];
+		tmp[1] = a[4];
+		tmp[2] = a[1];
+		tmp[3] = a[5];
+		tmp[4] = a[2];
+		tmp[5] = a[6];
+		tmp[6] = a[3];
+		tmp[7] = a[7];
+	}
+	for (i = 0; i < 8; i++) {
+		a[i] = tmp[i];
+	}
+}
+
+void T22(word32 a[8]) {
+	int i;
+	word32 tmp[8];
+	for (i = 0; i < 8; i++) {
+		tmp[0] = a[0];
+		tmp[1] = a[2];
+		tmp[2] = a[4];
+		tmp[3] = a[6];
+		tmp[4] = a[1];
+		tmp[5] = a[3];
+		tmp[6] = a[5];
+		tmp[7] = a[7];
+	}
+	for (i = 0; i < 8; i++) {
+		a[i] = tmp[i];
+	}
+}
+void M64(word32 a[8]) {
+	
+	for (int i = 0; i < 8; i += 2) {
+		a[i + 1] ^= a[i];
+		a[i] ^= (a[i + 1] << 4) | (a[i + 1] >> 28);
+		a[i + 1] ^= (a[i] << 8) | (a[i] >> 24);
+		a[i] ^= (a[i + 1] << 8) | (a[i + 1] >> 24);
+		a[i + 1] ^= (a[i] << 20) | (a[i] >> 12);
+		a[i] ^= a[i + 1];
+	}
+}
+void invM64(word32 a[8]) {
+	
+	for (int i = 0; i < 8; i += 2) {
+		a[i] ^= a[i + 1];
+		a[i + 1] ^= (a[i] << 20) | (a[i] >> 12);
+		a[i] ^= (a[i + 1] << 8) | (a[i + 1] >> 24);
+		a[i + 1] ^= (a[i] << 8) | (a[i] >> 24);
+		a[i] ^= (a[i + 1] << 4) | (a[i + 1] >> 28);
+		a[i + 1] ^= a[i];
+	}
+}
+void PLR(word32 a[8]) {
+	int i, j;
+	word8 tmp[32], tmp1[32];
+	word8 b[8][4];
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			b[i][3] = (a[i]) & 0xFF;
+			b[i][2] = (a[i] >> 8) & 0xFF;
+			b[i][1] = (a[i] >> 16) & 0xFF;
+			b[i][0] = (a[i] >> 24) & 0xFF;
+		}
+	}
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			tmp[4 * i + j] = b[i][j];
+		}
+	}
+
+	for (i = 4; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			tmp[4 * (i - 4) + j + 16] = b[i][j];
+		}
+	}
+	for (i = 0; i < 32; i++) {
+		tmp1[i] = tmp[PLR256[i]];
+	}
+	for (i = 0; i < 32; i += 4) {
+		a[i / 4] = (tmp1[i] << 24) | (tmp1[i + 1] << 16) | (tmp1[i + 2] << 8) | (tmp1[i + 3]);
+	}
+}
+void invPLR(word32 a[8]) {
+	int i, j;
+	word8 tmp[32], tmp1[32];
+	word8 b[8][4];
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			b[i][3] = (a[i]) & 0xFF;
+			b[i][2] = (a[i] >> 8) & 0xFF;
+			b[i][1] = (a[i] >> 16) & 0xFF;
+			b[i][0] = (a[i] >> 24) & 0xFF;
+		}
+	}
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			tmp[4 * i + j] = b[i][j];
+		}
+	}
+
+	for (i = 4; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			tmp[4 * (i - 4) + j + 16] = b[i][j];
+		}
+	}
+	for (i = 0; i < 32; i++) {
+		tmp1[i] = tmp[invPLR256[i]];
+	}
+	for (i = 0; i < 32; i += 4) {
+		a[i / 4] = (tmp1[i] << 24) | (tmp1[i + 1] << 16) | (tmp1[i + 2] << 8) | (tmp1[i + 3]);
+	}
+}
+void Exchange(int item, unsigned* temp)
+{
+	*(temp) = 0;
+	*(temp + 1) = 0;
+	*(temp + 2) = 0;
+	*(temp + 3) = 0;
+	int i, j, k, m;
+	for (i = 0; i < 32; i++)
+	{
+		j = i / 8;
+		k = PK3[i] / 8;
+		m = PK3[i] % 8;
+		*(temp + j) += ((RK[item][k] << m * 4) >> 28) << (28 - (i % 8) * 4);
+	}
+
+}
+void KeyExpand(unsigned* orikey)
+{
+	RK[0][0] = *orikey;
+	RK[0][1] = *(orikey + 1);
+	RK[0][2] = *(orikey + 2);
+	RK[0][3] = *(orikey + 3);
+	RK[0][4] = *(orikey + 4);
+	RK[0][5] = *(orikey + 5);
+	RK[0][6] = *(orikey + 6);
+	RK[0][7] = *(orikey + 7);
+	int i;
+	unsigned temp[8];
+	for (i = 0; i < 24; i++)
+	{
+		Exchange(i, temp);
+
+
+		temp[4] = RK[i][4] ^ S32(temp[0] ^ RC[i]);
+		temp[5] = RK[i][5] ^ S32(temp[1]);
+		temp[6] = RK[i][6] ^ T128(temp[2]);
+		temp[7] = RK[i][7] ^ T128(temp[3]);
+
+		RK[i + 1][0] = temp[4];
+		RK[i + 1][1] = temp[5];
+		RK[i + 1][2] = temp[6];
+		RK[i + 1][3] = temp[7];
+		RK[i + 1][4] = temp[2];
+		RK[i + 1][5] = temp[3];
+		RK[i + 1][6] = temp[0];
+		RK[i + 1][7] = temp[1];
+	}
+
+}
+void SuperSbox(word32 a[8]) {
+	SB(a);
+	M64(a);
+	SB(a);
+}
+void invSuperSbox(word32 a[8]) {
+	invSB(a);
+	invM64(a);
+	invSB(a);
+}
+void SuperM(word32 a[8]) {
+	T22(a);
+	PLR(a);
+	T11(a);
+	M64(a);
+	T22(a);
+	PLR(a);
+}
+void invSuperM(word32 a[8]) {
+	invPLR(a);
+	T11(a);
+	invM64(a);
+	T22(a);
+	invPLR(a);
+	T11(a);
+}
+int Encrypt(word32 a[8], int rounds) {
+	
+	
+		AddRoundKey(a, RK[0]);
+		//T11(a);
+		SuperSbox(a);
+		AddRoundKey(a, RK[1]);
+		SuperM(a);
+
+		AddRoundKey(a, RK[2]);
+		T11(a);
+		SuperSbox(a);
+		AddRoundKey(a, RK[3]);
+		//SuperM(a);
+	
+	    AddRoundKey(a, RK[4]);
+	
+	return 0;
+}
+int Decrypt(word32 a[8], int rounds) {
+	
+		AddRoundKey(a, RK[4]);
+		//invSuperM(a);
+		AddRoundKey(a, RK[3]);
+		invSuperSbox(a);
+		T22(a);
+
+		AddRoundKey(a, RK[2]);
+		invSuperM(a);
+		AddRoundKey(a, RK[1]);
+		invSuperSbox(a);
+		//T22(a);
+
+	    AddRoundKey(a, RK[0]);
+	return 0;
+}
+void PrintXOR(word8 block1[8][4], word8 block2[8][4])
+{
+	int i, j;
+
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 8; j++) {
+			printf("%02X", block1[j][i] ^ block2[j][i]);
+		} printf(" ");
+	}
+	printf("\n");
+}
+
+void Print(word8 block1[8][4])
+{
+	int i, j;
+
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 8; j++) {
+			printf("%02X", block1[j][i]);
+		} printf(" ");
+	}
+	printf("\n");
+}
+void swap(word8 x[8][4], word8 y[8][4]) {
+
+	word8 a[8][4] = { {0x1,0x0,0x0,0x0},
+						{0x0,0x2,0x0,0x0},
+						{0x0,0x0,0x3,0x0},
+						{0x0,0x0,0x0,0x4}, 
+	                    {0x1,0x0,0x0,0x0},
+						{0x0,0x2,0x0,0x0},
+						{0x0,0x0,0x3,0x0},
+						{0x0,0x0,0x0,0x4} };
+	word8 b[8][4] = { {0x1,0x0,0x0,0x0},
+					  {0x0,0x2,0x0,0x0},
+					  {0x0,0x0,0x3,0x0},
+					  {0x0,0x0,0x0,0x4},
+	                  {0x1,0x0,0x0,0x0},
+						{0x0,0x2,0x0,0x0},
+						{0x0,0x0,0x3,0x0},
+						{0x0,0x0,0x0,0x4} };
+	memcpy(&a, x, 32 * sizeof(word8));//拷贝x中的1个字节长度的数据到a的地址
+	memcpy(&b, y, 32 * sizeof(word8));
+	int z = -1;
+	// Pick the first word where texts are different
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 8; j++) {
+			if (x[j][i] != y[j][i]) {
+				z = i;
+				break;
+			}
+
+		}
+		if (z != -1) {
+			break;
+		}
+	}
+	for (int i = 0; i < 8; i++) {
+		x[i][z] = b[i][z];
+		y[i][z] = a[i][z];
+	}
+
+
+}
+void open32(word32 a[8], word8 b[8][4]) {//32bit拆成4个8bit
+	int i, j;
+	
+	word8 tmp[32];
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			b[7][0] = (a[1]) & 0xFF;
+			b[6][0] = (a[1] >> 8) & 0xFF;
+			b[5][0] = (a[1] >> 16) & 0xFF;
+			b[4][0] = (a[1] >> 24) & 0xFF;
+			b[3][0] = (a[0]) & 0xFF;
+			b[2][0] = (a[0] >> 8) & 0xFF;
+			b[1][0] = (a[0] >> 16) & 0xFF;
+			b[0][0] = (a[0] >> 24) & 0xFF;		
+
+			b[7][1] = (a[3]) & 0xFF;
+			b[6][1] = (a[3] >> 8) & 0xFF;
+			b[5][1] = (a[3] >> 16) & 0xFF;
+			b[4][1] = (a[3] >> 24) & 0xFF;
+			b[3][1] = (a[2]) & 0xFF;
+			b[2][1] = (a[2] >> 8) & 0xFF;
+			b[1][1] = (a[2] >> 16) & 0xFF;
+			b[0][1] = (a[2] >> 24) & 0xFF;
+
+			b[7][2] = (a[5]) & 0xFF;
+			b[6][2] = (a[5] >> 8) & 0xFF;
+			b[5][2] = (a[5] >> 16) & 0xFF;
+			b[4][2] = (a[5] >> 24) & 0xFF;
+			b[3][2] = (a[4]) & 0xFF;
+			b[2][2] = (a[4] >> 8) & 0xFF;
+			b[1][2] = (a[4] >> 16) & 0xFF;
+			b[0][2] = (a[4] >> 24) & 0xFF;
+
+			b[7][3] = (a[7]) & 0xFF;
+			b[6][3] = (a[7] >> 8) & 0xFF;
+			b[5][3] = (a[7] >> 16) & 0xFF;
+			b[4][3] = (a[7] >> 24) & 0xFF;
+			b[3][3] = (a[6]) & 0xFF;
+			b[2][3] = (a[6] >> 8) & 0xFF;
+			b[1][3] = (a[6] >> 16) & 0xFF;
+			b[0][3] = (a[6] >> 24) & 0xFF;
+		}
+	}
+}
+void merge8(word8 a[8][4], word32 b[8]) {//4个8bit合成32bit
+
+			b[0] = (a[0][0] << 24) | (a[1][0] << 16) | (a[2][0] << 8) | (a[3][0]);
+			b[1] = (a[4][0] << 24) | (a[5][0] << 16) | (a[6][0] << 8) | (a[7][0]);
+			b[2] = (a[0][1] << 24) | (a[1][1] << 16) | (a[2][1] << 8) | (a[3][1]);
+			b[3] = (a[4][1] << 24) | (a[5][1] << 16) | (a[6][1] << 8) | (a[7][1]);
+			b[4] = (a[0][2] << 24) | (a[1][2] << 16) | (a[2][2] << 8) | (a[3][2]);
+			b[5] = (a[4][2] << 24) | (a[5][2] << 16) | (a[6][2] << 8) | (a[7][2]);
+			b[6] = (a[0][3] << 24) | (a[1][3] << 16) | (a[2][3] << 8) | (a[3][3]);
+			b[7] = (a[4][3] << 24) | (a[5][3] << 16) | (a[6][3] << 8) | (a[7][3]);
+}
+int randomInRange(int min, int max) {   //最大、最小整数
+
+
+	int range = max - min + 1;
+	int a, b, c, d;
+
+	a = rand() % range;
+	b = rand() % range;
+	c = rand() % range;
+	d = (a * b) % range;
+	d = (d + c) % range;
+
+	return (min + d);
+
+}
+word8 randomByte() {
+	return (word8)randomInRange(0, 255);//2^8
+}
+int main() {
+	int i;
+	word32 plain1[8], plain2[8], cipher1[8], cipher2[8], key[8];
+	word8 p11[8][4], p22[8][4];
+	//word32 plain[8] = { 0x01234567,0x89abcdef,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000 };//plaintext
+	//word32 key[8] = { 0x00000000,0x00000001,0x00000002,0x00000003,0x00000004,0x00000005,0x00000006,0x00000007 };//private key
+	//KeyExpand(key);
+	//Encrypt(plain, 4);
+	//Decrypt(plain, 4);
+	word8 k[8][4] = { {0x00,0x08,0x01,0x07},
+	                  {0x01,0x09,0x23,0x06},
+	                  {0x02,0x0a,0x45,0x05},
+	                  {0x03,0x0b,0x67,0x04},
+	                  {0x04,0x0c,0x89,0x03},
+	                  {0x05,0x0d,0xab,0x02},
+	                  {0x06,0x0e,0xcd,0x01},
+		              {0x07,0x0f,0xef,0x00} };
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			k[i][j] = randomByte();
+		}
+	}
+	merge8(k, key);
+	KeyExpand(key);
+	word8 p1[8][4] = { {0x50,0x5f,0xb9,0x03},
+						{0x68,0x08,0x7f,0x8b},
+						{0x12,0xc8,0x59,0x83},
+						{0xa4,0x89,0x80,0x59},
+	                    {0x04,0x0c,0x89,0x03},
+					    {0x05,0x0d,0xab,0x02},
+					    {0x06,0x0e,0xcd,0x01},
+					    {0x07,0x0f,0xef,0x00} };
+	printf(" 4 Round distinguisher for uBlock. \n 10 experiments with random pairs under a random key. \n Encrypt a pair, swap, and return a new plaintext pair \n Zero Difference pattern is the same\n");
+	
+	for (int z = 0; z < 10; z++) {
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 4; j++) {
+				p1[i][j] = randomByte();
+			}
+		}
+	word8 p2[8][4];
+	word8 c1[8][4];
+	word8 c2[8][4];
+	
+	memcpy(p2, p1, sizeof(p2) * sizeof(word8));
+	for (int i = 0; i < 8; i++) {
+		p2[i][0] = randomByte();
+	}
+	printf("Random pair # %i\n ", z);
+	printf("P1:");
+	Print(p1);
+	printf("P2:");
+	Print(p2);
+	printf("Diff:");//明文差分
+	PrintXOR(p1, p2);
+	printf("\n");
+	merge8(p1, plain1);//8bit明文合并成32bit
+	merge8(p2, plain2);
+	Encrypt(plain1, 4);
+	Encrypt(plain2, 4);
+	open32(plain1, p1);
+	open32(plain2, p2);
+	
+	memcpy(c1, p1, sizeof(c1) * sizeof(word8));
+	memcpy(c2, p2, sizeof(c2) * sizeof(word8));
+	printf("C1:");
+	Print(c1);
+	printf("C2:");
+	Print(c2);
+	printf("Diff:");//密文差分
+	PrintXOR(c1, c2);
+	printf("\n");
+	swap(c1, c2);
+	printf("C1':");
+	Print(c1);
+	printf("C2':");
+	Print(c2);
+	printf("Diff:");
+	PrintXOR(c1, c2);
+	printf("\n");
+	merge8(c1, cipher1);//8bit明文合并成32bit
+	merge8(c2, cipher2);
+	Decrypt(cipher1, 4);
+	Decrypt(cipher2, 4);
+	open32(cipher1, p11);
+	open32(cipher2, p22);
+	printf("p1':");
+	Print(p11);
+	printf("p2':");
+	Print(p22);
+	printf("Diff:");
+	PrintXOR(p11, p22);
+	printf("\n\n\n");
+	}
+	
+	/*printf("the round key\n");
+	for (i = 0; i < 25; i++)
+	{
+		printf("%08x ", RK[i][0]);
+		printf("%08x ", RK[i][1]);
+		printf("%08x ", RK[i][2]);
+		printf("%08x ", RK[i][3]);
+		printf("%08x ", RK[i][4]);
+		printf("%08x ", RK[i][5]);
+		printf("%08x ", RK[i][6]);
+		printf("%08x \n", RK[i][7]);
+	}
+	
+	printf("the c1 is \n");
+	for (int i = 0; i < 8; i++)
+	{		
+			printf("  %08x ", plain[i]);
+		printf(" \n ");
+	}*/
+	/*printf("the plain is \n");
+	for (i = 0; i < 8; i++)
+	{
+		printf("%08x ", plain[i]);
+	}
+	printf("\n");*/
+
+	return 0;
+}
+
